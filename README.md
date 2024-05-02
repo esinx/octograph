@@ -1,5 +1,7 @@
 # Octograph
 
+Repo Link: [https://github.com/esinx/octograph](https://github.com/esinx/octograph)
+
 > Social affiliation network from GitHub contributions
 
 **For Live Demo, please visit https://octograph.esinx.net**
@@ -56,7 +58,7 @@ yarn dev
 
 ## Screenshots
 
-![octograph](./screenshots/1.png?raw=true)
-![octograph](./screenshots/2.png?raw=true)
-![octograph](./screenshots/3.png?raw=true)
-![octograph](./screenshots/4.png?raw=true)
+![octograph1](./screenshots/1.png?raw=true)
+![octograph2](./screenshots/2.png?raw=true)
+![octograph3](./screenshots/3.png?raw=true)
+![octograph4](./screenshots/4.png?raw=true)
