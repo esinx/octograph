@@ -6,10 +6,12 @@ import {
 	NodeProps,
 	ResponsiveNetwork,
 } from '@nivo/network'
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
+import { LoaderCircle } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 
 import githubAPI, { Repo, User } from '@/api/github'
+import { Slider } from '@/components/ui/slider'
 import { cn, removeDuplicatesBy } from '@/utils'
 
 interface UserNode extends InputNode {
@@ -64,6 +66,18 @@ function createGraph(repos: Awaited<ReturnType<typeof githubAPI.scanUser>>) {
 	}
 }
 
+function mergeGraphs(graphs: ReturnType<typeof createGraph>[]) {
+	const nodes = removeDuplicatesBy(
+		graphs.flatMap(g => g.nodes),
+		n => n.node_id,
+	)
+	const links = removeDuplicatesBy(
+		graphs.flatMap(g => g.links),
+		l => l.node_id + l.source + l.target,
+	)
+	return { nodes, links }
+}
+
 const NodeComponent: React.FC<NodeProps<Node>> = ({
 	node,
 	node: { data },
@@ -76,6 +90,7 @@ const NodeComponent: React.FC<NodeProps<Node>> = ({
 		if (data.type === 'user') {
 			return (
 				<image
+					style={{ cursor: 'pointer' }}
 					transform={`translate(-${node.size / 2},-${node.size / 2})`}
 					href={data.user.avatar_url}
 					width={node.size}
@@ -120,12 +135,18 @@ const LinkComponent: React.FC<LinkProps<Node, Link>> = ({
 	)
 }
 
-const GitHubNetwork: React.FC<NetworkDataProps<Node, Link>> = ({ data }) => {
+const GitHubNetwork: React.FC<
+	NetworkDataProps<Node, Link> & {
+		onNodeClick?: (node: Node) => void
+	}
+> = ({ data, onNodeClick }) => {
 	const draggingRef = useRef(false)
+	const [zoom, setZoom] = useState(10)
+	const [centeringStrength, setCenteringStrength] = useState(0.15)
 	const [margin, setMargin] = useState({ top: 0, right: 0, bottom: 0, left: 0 })
 	return (
 		<div
-			className={cn(['w-screen', 'h-screen'])}
+			className={cn(['w-screen', 'h-screen', 'relative'])}
 			onMouseDown={() => {
 				draggingRef.current = true
 			}}
@@ -142,16 +163,79 @@ const GitHubNetwork: React.FC<NetworkDataProps<Node, Link>> = ({ data }) => {
 				draggingRef.current = false
 			}}
 		>
+			<div
+				className={cn([
+					'absolute',
+					'top-4',
+					'right-4',
+					'p-4',
+					'z-10',
+					'bg-background',
+					'shadow-2xl',
+					'rounded-lg',
+				])}
+			>
+				<div className={cn(['flex', 'flex-col', 'space-y-4'])}>
+					<div className={cn(['text-md', 'font-bold'])}>Node Distances</div>
+					<Slider
+						className={cn(['w-[200px]'])}
+						min={1}
+						max={10}
+						value={[zoom]}
+						step={0.01}
+						onValueChange={([value]) => {
+							setZoom(value)
+						}}
+					/>
+					<div className={cn(['text-md', 'font-bold'])}>Centering Strength</div>
+					<Slider
+						className={cn(['w-[200px]'])}
+						min={0}
+						max={1}
+						step={0.01}
+						value={[centeringStrength]}
+						onValueChange={([value]) => {
+							setCenteringStrength(value)
+						}}
+					/>
+				</div>
+			</div>
+
+			<div
+				className={cn([
+					'absolute',
+					'bottom-4',
+					'right-4',
+					'p-4',
+					'z-10',
+					'w-[200px]',
+					'bg-background',
+					'shadow-2xl',
+					'rounded-lg',
+				])}
+			>
+				<div className={cn(['flex', 'flex-col', 'space-y-4', 'items-center'])}>
+					<div className={cn(['text-md', 'text-gray-500'])}>
+						# Nodes: {data.nodes.length}
+					</div>
+					<div className={cn(['text-md', 'text-gray-500'])}>
+						# Edges: {data.links.length}
+					</div>
+				</div>
+			</div>
+
 			<ResponsiveNetwork<Node, Link>
 				data={data}
 				theme={{
 					background: 'transparent',
 				}}
 				margin={margin}
-				linkDistance={100}
+				linkDistance={200}
 				distanceMin={1}
-				centeringStrength={0.3}
-				repulsivity={data.nodes.length}
+				centeringStrength={centeringStrength}
+				repulsivity={
+					(Math.log2(data.nodes.length) * Math.log(zoom)) / Math.log(50)
+				}
 				nodeSize={n => (n.type === 'user' ? 40 : 20)}
 				activeNodeSize={n => (n.type === 'user' ? 40 : 20)}
 				inactiveNodeSize={n => (n.type === 'user' ? 40 : 20)}
@@ -176,9 +260,9 @@ const GitHubNetwork: React.FC<NetworkDataProps<Node, Link>> = ({ data }) => {
 									'items-center',
 									'bg-background',
 									'p-4',
-									'w-[200px]',
+									'mw-[200px]',
 									'rounded-lg',
-									'shadow-lg',
+									'shadow-2xl',
 								])}
 							>
 								<img
@@ -186,20 +270,55 @@ const GitHubNetwork: React.FC<NetworkDataProps<Node, Link>> = ({ data }) => {
 									src={node.data.user.avatar_url}
 									alt={node.data.user.login}
 								/>
-								<p>{node.data.user.login}</p>
+								<div
+									className={cn([
+										'text-xl',
+										'font-bold',
+										'mt-2',
+										'text-center',
+									])}
+								>
+									@{node.data.user.login}
+								</div>
+								<div>
+									<a
+										href={node.data.user.html_url}
+										className={cn(['text-blue-500', 'underline'])}
+									>
+										{node.data.user.html_url}
+									</a>
+								</div>
 							</div>
 						)
 					} else {
 						return (
-							<div>
-								<p>{node.data.repo.name}</p>
-								<p>{node.data.repo.description}</p>
+							<div
+								className={cn([
+									'bg-background',
+									'p-4',
+									'mw-[200px]',
+									'rounded-lg',
+									'shadow-2xl',
+								])}
+							>
+								<div className={cn(['text-xl', 'font-bold'])}>
+									{node.data.repo.name}
+								</div>
+								<div>
+									<a
+										href={node.data.repo.html_url}
+										className={cn(['text-blue-500', 'underline'])}
+									>
+										{node.data.repo.html_url}
+									</a>
+								</div>
+								<div>{node.data.repo.description}</div>
 							</div>
 						)
 					}
 				}}
 				onClick={node => {
-					console.log(node)
+					onNodeClick?.(node.data)
 				}}
 			/>
 		</div>
@@ -211,19 +330,104 @@ type GraphViewProps = {
 }
 
 const GraphView: React.FC<GraphViewProps> = ({ username }) => {
-	const { data: repos } = useSuspenseQuery({
-		queryKey: ['github', username, 'repos'],
-		queryFn: async () =>
-			await githubAPI.scanUser({ username, limitRepositories: 50 }),
+	const [expandedUsers, setExpandedUsers] = useState<string[]>([])
+	const {
+		data: reposList,
+		isLoading,
+		error,
+	} = useQuery({
+		queryKey: ['github', username, 'repos', ...expandedUsers],
+		queryFn: async ({ queryKey: [, username, , ...expandedUsers] }) => {
+			const allUsers = [username, ...expandedUsers]
+			const reposList = await Promise.all(
+				allUsers.map(user =>
+					githubAPI.scanUser({ username: user, limitRepositories: 50 }),
+				),
+			)
+			return reposList
+		},
 	})
 	const graphData = useMemo(() => {
-		if (!repos) return { nodes: [], links: [] }
-		return createGraph(repos)
-	}, [repos])
+		if (!reposList) return { nodes: [], links: [] }
+		return mergeGraphs(reposList.map(r => createGraph(r)))
+	}, [reposList])
 	return (
 		<div>
 			<div className={cn(['w-screen', 'h-screen', 'relative'])}>
-				<GitHubNetwork data={graphData} />
+				{error && (
+					<div
+						className={cn([
+							'grid',
+							'place-items-center',
+							'w-screen',
+							'h-screen',
+							'bg-red-500',
+							'bg-opacity-50',
+							'z-50',
+						])}
+					>
+						<div
+							className={cn([
+								'text-bold',
+								'text-lg',
+								'flex',
+								'flex-col',
+								'items-center',
+								'bg-background',
+								'p-4',
+								'rounded-lg',
+								'shadow-2xl',
+								'w-[400px]',
+							])}
+						>
+							<div className={cn(['text-red-500', 'mb-2'])}>Error</div>
+							<div>{error.message}</div>
+						</div>
+					</div>
+				)}
+				{isLoading && (
+					<div
+						className={cn([
+							'grid',
+							'place-items-center',
+							'w-screen',
+							'h-screen',
+							'bg-black',
+							'bg-opacity-50',
+							'z-50',
+							'pointer-events-none',
+						])}
+					>
+						<div
+							className={cn([
+								'text-bold',
+								'text-lg',
+								'flex',
+								'flex-col',
+								'items-center',
+								'bg-background',
+								'p-4',
+								'rounded-lg',
+								'shadow-2xl',
+								'w-[400px]',
+								'animate-pulse',
+							])}
+						>
+							Reloading Data
+							<div className={cn(['mt-4', 'animate-spin'])}>
+								<LoaderCircle size={64} />
+							</div>
+						</div>
+					</div>
+				)}
+				<GitHubNetwork
+					data={graphData}
+					onNodeClick={node => {
+						if (node.type === 'user') {
+							setExpandedUsers([...expandedUsers, node.user.login])
+						}
+					}}
+				/>
 				<div
 					className={cn([
 						'dotted-background',

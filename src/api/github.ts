@@ -7,7 +7,7 @@ const octokit = new Octokit({
 })
 
 export type Repo = Awaited<
-	ReturnType<typeof octokit.rest.repos.listForAuthenticatedUser>
+	ReturnType<typeof octokit.rest.repos.listForUser>
 >['data'][number]
 
 export type User = {
@@ -32,7 +32,10 @@ export type User = {
 	url: string
 }
 
+export type RepoWithContributors = Repo & { contributors: User[] }
+
 const githubAPI = (() => {
+	const scanUserCache = new Map<string, Map<number, RepoWithContributors[]>>()
 	const listAllRepos = async (username: string) => {
 		let repos: Repo[] = []
 		let page = 1
@@ -72,13 +75,28 @@ const githubAPI = (() => {
 			page++
 		}
 	}
+	/**
+	 * Scan a user's repositories and return the ones where the user is a contributor.
+	 * Internally caches the results.
+	 * @param args
+	 * @returns
+	 */
 	const scanUser = async (args: {
 		username: string
 		limitRepositories?: number
-	}) => {
-		const { username, limitRepositories } = args
+	}): Promise<RepoWithContributors[]> => {
+		const { username, limitRepositories = 0 } = args
+		if (
+			scanUserCache.has(username) &&
+			scanUserCache.get(username)!.has(limitRepositories)
+		) {
+			return scanUserCache.get(username)!.get(limitRepositories)!
+		}
+		if (!scanUserCache.has(username)) {
+			scanUserCache.set(username, new Map())
+		}
 		let repos = await listAllRepos(username)
-		if (limitRepositories) {
+		if (limitRepositories > 0) {
 			repos = repos.slice(0, limitRepositories)
 		}
 		const reposWithContributors = await Promise.all(
@@ -87,13 +105,13 @@ const githubAPI = (() => {
 				contributors: await listAllContributors(repo.full_name),
 			})),
 		)
-		return reposWithContributors.filter(r =>
+		const filtered = reposWithContributors.filter(r =>
 			r.contributors.some(c => c.login === username),
 		)
+		scanUserCache.get(username)!.set(limitRepositories, filtered)
+		return filtered
 	}
 	return {
-		listAllRepos,
-		listAllContributors,
 		scanUser,
 	}
 })()
