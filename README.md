@@ -2,6 +2,8 @@
 
 > Social affiliation network from GitHub contributions
 
+**For Live Demo, please visit https://octograph.esinx.net**
+
 **Octograph** uses GitHub API to fetch user contributions and build a social affiliation network based on the repositories they have contributed to. The resulting graph is an undirected bipartite graph of users and repositories, where an edge between a user and a repository indicates that the user has contributed to the repository.
 
 The graph effectively is a social affiliation network that demonstrates Membership closure / Focal closure, depending on how we interpret contributions as a form of membership or focal closure. The graph can be used to analyze the social structure of the GitHub community and identify communities of users who have contributed to similar repositories.
@@ -51,3 +53,10 @@ yarn dev
 2. Hover on nodes to see the user or repository name.
 3. Click on a node to perform a 2-layer BFS on the node and fetch the contributions of the users or repositories in the second layer. (This will take a while to load)
 4. Pan through the graph view and explore the GitHub contribution graph! You can also use the sliders on the top right corner to adjust the graph layout. You can configure the node distances and the centering strength(the higher it is, the more the nodes will be centered around a node with high centrality) of the graph.
+
+## Screenshots
+
+![octograph](./screenshots/1.png?raw=true)
+![octograph](./screenshots/2.png?raw=true)
+![octograph](./screenshots/3.png?raw=true)
+![octograph](./screenshots/4.png?raw=true)
