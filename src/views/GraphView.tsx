@@ -178,9 +178,9 @@ const GitHubNetwork: React.FC<
 				<div className={cn(['flex', 'flex-col', 'space-y-4'])}>
 					<div className={cn(['text-md', 'font-bold'])}>Node Distances</div>
 					<Slider
-						className={cn(['w-[200px]'])}
+						className={cn(['w-[400px]'])}
 						min={1}
-						max={10}
+						max={50}
 						value={[zoom]}
 						step={0.01}
 						onValueChange={([value]) => {
@@ -189,7 +189,7 @@ const GitHubNetwork: React.FC<
 					/>
 					<div className={cn(['text-md', 'font-bold'])}>Centering Strength</div>
 					<Slider
-						className={cn(['w-[200px]'])}
+						className={cn(['w-[400px]'])}
 						min={0}
 						max={1}
 						step={0.01}
@@ -234,7 +234,7 @@ const GitHubNetwork: React.FC<
 				distanceMin={1}
 				centeringStrength={centeringStrength}
 				repulsivity={
-					(Math.log2(data.nodes.length) * Math.log(zoom)) / Math.log(50)
+					(Math.log2(data.nodes.length) * Math.log(zoom)) / Math.log(30)
 				}
 				nodeSize={n => (n.type === 'user' ? 40 : 20)}
 				activeNodeSize={n => (n.type === 'user' ? 40 : 20)}
@@ -341,7 +341,7 @@ const GraphView: React.FC<GraphViewProps> = ({ username }) => {
 			const allUsers = [username, ...expandedUsers]
 			const reposList = await Promise.all(
 				allUsers.map(user =>
-					githubAPI.scanUser({ username: user, limitRepositories: 50 }),
+					githubAPI.scanUser({ username: user, limitRepositories: 100 }),
 				),
 			)
 			return reposList
